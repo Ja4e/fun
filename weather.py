@@ -29,6 +29,13 @@ def save_cache(data):
     with open(CACHE_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
+def clear_cache():
+    if os.path.exists(CACHE_FILE):
+        os.remove(CACHE_FILE)
+        print("Cache cleared.")
+    else:
+        print("Cache file does not exist.")
+
 def get_country_flag(country_code):
     try:
         flag = ''.join([chr(0x1F1E6 + ord(c) - ord('A')) for c in country_code.upper()])
@@ -39,7 +46,7 @@ def get_country_flag(country_code):
 
 def get_country_code(location_name):
     location_name = location_name.upper()
-    matches = process.extract(location_name, country_dict.keys(), limit=5)
+    matches = process.extract(location_name, country_dict.keys(), limit=10)
     cache = load_cache()
     cache['matches'][location_name] = matches
     save_cache(cache)
@@ -67,14 +74,18 @@ def prompt_for_location(location_name):
     for i, (match, score) in enumerate(matches):
         print(f"{i + 1}. {match} (Score: {score})")
     print(f"{len(matches) + 1}. Enter manually")
-    print(f"{len(matches) + 2}. Exit")
+    print(f"{len(matches) + 2}. Clear Cache")
+    print(f"{len(matches) + 3}. Exit")
 
     while True:
         try:
-            choice = int(input(f"Please select the correct option (1-{len(matches) + 2}): "))
+            choice = int(input(f"Please select the correct option (1-{len(matches) + 3}): "))
             if choice == len(matches) + 1:
                 return input("Please enter the correct location manually: ").upper()
             elif choice == len(matches) + 2:
+                clear_cache()
+                return prompt_for_location(location_name)  # Prompt again after clearing cache
+            elif choice == len(matches) + 3:
                 exit_program()
             elif 1 <= choice <= len(matches):
                 return matches[choice - 1][0]
