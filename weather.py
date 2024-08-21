@@ -11,28 +11,21 @@ CACHE_TIMEOUT = 600
 
 country_dict = {country.name.upper(): country.alpha_2 for country in pycountry.countries}
 
-def load_cache(location):
+def load_cache():
     try:
         with open(CACHE_FILE, 'r') as f:
             data = json.load(f)
-            if time.time() - data['timestamp'] < CACHE_TIMEOUT and location in data.get('matches', {}):
-                return data['matches'][location]
+            # Remove expired cache entries
+            data['matches'] = {
+                loc: match for loc, match in data.get('matches', {}).items()
+                if time.time() - data['timestamp'] < CACHE_TIMEOUT
+            }
+            return data
     except (FileNotFoundError, json.JSONDecodeError):
-        return None
+        return {'timestamp': time.time(), 'matches': {}}
 
-def save_cache(location, matches):
-    try:
-        with open(CACHE_FILE, 'r') as f:
-            data = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        data = {'timestamp': time.time(), 'matches': {}}
-    
-    if 'matches' not in data:
-        data['matches'] = {}
-
+def save_cache(data):
     data['timestamp'] = time.time()
-    data['matches'][location] = matches
-
     with open(CACHE_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
@@ -47,7 +40,9 @@ def get_country_flag(country_code):
 def get_country_code(location_name):
     location_name = location_name.upper()
     matches = process.extract(location_name, country_dict.keys(), limit=5)
-    save_cache(location_name, matches)
+    cache = load_cache()
+    cache['matches'][location_name] = matches
+    save_cache(cache)
     return matches
 
 def exit_program():
@@ -55,10 +50,10 @@ def exit_program():
     exit()
 
 def prompt_for_location(location_name):
-    cached_matches = load_cache(location_name)
-    if cached_matches:
-        matches = cached_matches
-    else:
+    cache = load_cache()
+    matches = cache.get('matches', {}).get(location_name)
+    
+    if not matches:
         matches = get_country_code(location_name)
     
     if not matches:
