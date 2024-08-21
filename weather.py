@@ -9,7 +9,7 @@ from rapidfuzz import process, fuzz
 user_entries = {}
 
 CACHE_FILE = 'weather_cache.json'
-CACHE_TIMEOUT = 600
+CACHE_TIMEOUT = 2000
 
 country_dict = {country.name.upper(): country.alpha_2 for country in pycountry.countries}
 
@@ -48,11 +48,7 @@ def get_country_flag(country_code):
 
 def get_country_code(location_name):
     location_name = location_name.upper()
-    
-    # Use RapidFuzz's built-in scoring
-    matches = process.extract(location_name, country_dict.keys(), scorer=fuzz.ratio, limit=10)
-    
-    # Prioritize exact matches
+    matches = process.extract(location_name, country_dict.keys(), scorer=fuzz.ratio, limit=15)
     exact_match = [match for match in matches if match[0] == location_name]
     if exact_match:
         matches = exact_match
