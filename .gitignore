@@ -1,0 +1,6 @@
+env/
+.DS_Store
+.git
+weather_cache.json
+user_entries.json
+**/__pycache__
