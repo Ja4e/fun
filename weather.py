@@ -111,44 +111,43 @@ def clear_user_entries():
 
 
 def get_location_choice(matches, location_name):
-    choice = int(input(f"Please select the correct option (1-{len(matches) + 6}): "))
+    while True:
+        try:
+            choice = int(input(f"Please select the correct option (1-{len(matches) + 6}): "))
 
-    if 1 <= choice <= len(matches):
-        selected_location = matches[choice - 1][0]
-        return selected_location
-    else:
-        choice -= len(matches)
-        match choice:
-            case 1:
-                manual_entry = input("Please enter the correct location manually: ").upper()
-                country = input(f"Enter the country for {manual_entry}: ").upper()
-                if (
-                    input(
-                        f"Do you want to save {manual_entry} as {country}? (y/n): "
-                    ).lower()
-                    == "y"
-                ):
-                    user_entries[manual_entry] = country
-                return manual_entry
-            case 2:
-                manual_entry = input("Please enter the correct location manually: ").upper()
-                return manual_entry
-            case 3:
-                clear_cache()
-                return prompt_for_location(location_name)
-            case 4:
-                clear_user_entries()
-                return prompt_for_location(location_name)
-            case 5:
-                clear_cache()
-                clear_user_entries()
-                return prompt_for_location(location_name)
-            case 6:
-                exit_program()
-            case _:
-                print("Invalid choice. Please try again.")
-                return prompt_for_location(location_name)
+            if 1 <= choice <= len(matches):
+                # The user has selected a valid match
+                selected_location = matches[choice - 1][0]
+                return selected_location
 
+            choice -= len(matches)
+
+            match choice:
+                case 1:
+                    manual_entry = input("Please enter the correct location manually: ").upper()
+                    country = input(f"Enter the country for {manual_entry}: ").upper()
+                    if input(f"Do you want to save {manual_entry} as {country}? (y/n): ").lower() == "y":
+                        user_entries[manual_entry] = country
+                    return manual_entry
+                case 2:
+                    manual_entry = input("Please enter the correct location manually: ").upper()
+                    return manual_entry
+                case 3:
+                    clear_cache()
+                    return prompt_for_location(location_name)
+                case 4:
+                    clear_user_entries()
+                    return prompt_for_location(location_name)
+                case 5:
+                    clear_cache()
+                    clear_user_entries()
+                    return prompt_for_location(location_name)
+                case 6:
+                    exit_program()
+                case _:
+                    print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
 
 
 def prompt_for_location(location_name):
@@ -180,11 +179,12 @@ def prompt_for_location(location_name):
     print(f"{len(matches) + 5}. Clear All Cache")
     print(f"{len(matches) + 6}. Exit")
 
-    while True:
-        try:
-            get_location_choice(matches, location_name)
-        except ValueError:
-            print("Invalid input. Please enter a number.")
+    try:
+        return get_location_choice(matches, location_name)
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        return prompt_for_location(location_name)  # Recursively call if invalid input
+
 
 
 def fahrenheit_to_celsius(fahrenheit):
