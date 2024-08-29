@@ -272,14 +272,11 @@ while True:
 		).upper()
 		if location== "1":
 			clear_cache()
-			input_request()
 		elif location== "2":
 			clear_user_entries()
-			input_request()
 		elif location== "3":
 			clear_cache()
 			clear_user_entries()
-			input_request()
 		elif location== "4":
 			exit_program()
 		else:
