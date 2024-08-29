@@ -257,17 +257,39 @@ async def get_weather_forecast(location_name):
         for daily in daily_forecasts[:3]:  # Get the first 3 days of forecasts
             print_daily_forecast(daily)
 
+def input_request():
+    location = input("Please enter the location for which you want the weather forecast: ").upper()
+    
+while True:    
+	if __name__ == "__main__":
+		user_entries.update(load_user_entries())
+		print("clear cache input: 1")
+		print("clear user entries input: 2")
+		print("clear all cache input: 3")
+		print("Exit: 4")
+		location = input(
+			"Please enter the location for which you want the weather forecast: "
+		).upper()
+		if location== "1":
+			clear_cache()
+			input_request()
+		elif location== "2":
+			clear_user_entries()
+			input_request()
+		elif location== "3":
+			clear_cache()
+			clear_user_entries()
+			input_request()
+		elif location== "4":
+			exit_program()
+		else:
+			location = prompt_for_location(location)
 
-if __name__ == "__main__":
-    user_entries.update(load_user_entries())
-    location = input(
-        "Please enter the location for which you want the weather forecast: "
-    ).upper()
-    location = prompt_for_location(location)
+			if os.name == "nt":
+				asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-    if os.name == "nt":
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+			asyncio.run(get_weather_forecast(location))
 
-    asyncio.run(get_weather_forecast(location))
-
-    save_user_entries()
+			save_user_entries()
+	else:
+		exit_program()
