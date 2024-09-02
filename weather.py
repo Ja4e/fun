@@ -166,11 +166,8 @@ def prompt_for_location(location_name):
 
     print("\nAmbiguous location. Here are some possible matches:")
     for i, item in enumerate(matches):
-        if len(item) == 3:
-            match, score, _ = item
-            print(f"{i + 1}. {match} (Score: {score:.2f})")
-        else:
-            print(f"Unexpected item structure: {item}")
+        match, score = item  # Unpack the name and score from the tuple
+        print(f"{i + 1}. {match} (Score: {score:.2f})")
 
     print(f"{len(matches) + 1}. Manual Correction")
     print(f"{len(matches) + 2}. Full Manual (not saved in dictionary)")
