@@ -10,4 +10,5 @@ Cache is implemented for less computing on guessing your county name and have ne
 
 
 to use this script you need to install
+
 pip install python-weather fuzzywuzzy python-Levenshtein pycountry
