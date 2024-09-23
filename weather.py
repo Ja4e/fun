@@ -166,7 +166,7 @@ def prompt_for_location(location_name):
 
     print("\nAmbiguous location. Here are some possible matches:")
     for i, item in enumerate(matches):
-        match, score = item  # Unpack the name and score from the tuple
+        match, score, _ = item  # This crap broke this update btw there you go
         print(f"{i + 1}. {match} (Score: {score:.2f})")
 
     print(f"{len(matches) + 1}. Manual Correction")
