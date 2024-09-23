@@ -13,6 +13,6 @@ to use this script you need to install
 
 pip install python-weather fuzzywuzzy python-Levenshtein pycountry
 
-New python update boke this script 
+Ok this is fixed
 
-wait for update
+have fun
