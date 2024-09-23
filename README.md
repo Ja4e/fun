@@ -16,3 +16,5 @@ pip install python-weather fuzzywuzzy python-Levenshtein pycountry
 Ok this is fixed
 
 have fun
+
+the output is too long eh ill try to integrate prettytable into the code to look good
