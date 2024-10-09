@@ -18,3 +18,6 @@ Ok this is fixed
 have fun
 
 the output is too long eh ill try to integrate prettytable into the code to look good
+
+
+run weather396.py if theres 3.9.6 only installed on your computer
