@@ -7,282 +7,176 @@
 # OSI website for a full text of the license. 
 #
 
-import asyncio
-import python_weather
-import time
-import json
-import pycountry
+import math
 import os
+import subprocess
+import sys
+import warnings
+from tabulate import tabulate
+import time
 
-from rapidfuzz import process, fuzz
-
-user_entries = {}
-
-CACHE_FILE = "weather_cache.json"
-CACHE_TIMEOUT = 2000
-
-country_dict = {
-    country.name.upper(): country.alpha_2 for country in pycountry.countries
-}
-
-
-def load_cache():
-    try:
-        with open(CACHE_FILE, "r") as f:
-            data = json.load(f)
-            # Remove expired cache entries
-            data["matches"] = {
-                loc: match
-                for loc, match in data.get("matches", {}).items()
-                if time.time() - data["timestamp"] < CACHE_TIMEOUT
-            }
-            return data
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"timestamp": time.time(), "matches": {}}
-
-
-def save_cache(data):
-    data["timestamp"] = time.time()
-    with open(CACHE_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-def clear_cache():
-    if os.path.exists(CACHE_FILE):
-        os.remove(CACHE_FILE)
-        print("Cache cleared.")
-    else:
-        print("Cache file does not exist.")
-
-
-def get_country_flag(country_code):
-    try:
-        flag = "".join([chr(0x1F1E6 + ord(c) - ord("A")) for c in country_code.upper()])
-        return flag
-    except Exception as e:
-        print(f"Error retrieving flag for {country_code}: {e}")
-        return ":question:"
-
-
-def get_country_code(location_name):
-    location_name = location_name.upper()
-    matches = process.extract(
-        location_name, country_dict.keys(), scorer=fuzz.ratio, limit=15
-    )
-    exact_match = [match for match in matches if match[0] == location_name]
-    if exact_match:
-        matches = exact_match
-    else:
-        # Sort matches based on score (highest first)
-        matches = sorted(matches, key=lambda x: x[1], reverse=True)
-
-    cache = load_cache()
-    cache["matches"][location_name] = matches
-    save_cache(cache)
-    return matches
-
-
-def exit_program():
-    print("Exiting the program.")
-    exit()
-
-
-USER_ENTRIES_FILE = "user_entries.json"
-
-
-def load_user_entries():
-    try:
-        with open(USER_ENTRIES_FILE, "r") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-
-def save_user_entries():
-    with open(USER_ENTRIES_FILE, "w") as f:
-        json.dump(user_entries, f, indent=4)
-
-
-def clear_user_entries():
-    global user_entries
-
-    user_entries.clear()
-    print("User entries have been cleared.")
-
-
-def get_location_choice(matches, location_name):
-    while True:
-        try:
-            choice = int(input(f"Please select the correct option (1-{len(matches) + 6}): "))
-
-            if 1 <= choice <= len(matches):
-                # The user has selected a valid match
-                selected_location = matches[choice - 1][0]
-                return selected_location
-
-            choice -= len(matches)
-
-            if choice == 1:
-                manual_entry = input("Please enter the correct location manually: ").upper()
-                country = input(f"Enter the country for {manual_entry}: ").upper()
-                if input(f"Do you want to save {manual_entry} as {country}? (y/n): ").lower() == "y":
-                    user_entries[manual_entry] = country
-                return manual_entry
-            elif choice == 2:
-                manual_entry = input("Please enter the correct location manually: ").upper()
-                return manual_entry
-            elif choice == 3:
-                clear_cache()
-                return prompt_for_location(location_name)
-            elif choice == 4:
-                clear_user_entries()
-                return prompt_for_location(location_name)
-            elif choice == 5:
-                clear_cache()
-                clear_user_entries()
-                return prompt_for_location(location_name)
-            elif choice == 6:
-                exit_program()
-            else:
-                print("Invalid choice. Please try again.")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
-
-
-def prompt_for_location(location_name):
-    cache = load_cache()
-    matches = cache.get("matches", {}).get(location_name)
-
-    if not matches:
-        matches = get_country_code(location_name)
-
-    if not matches:
-        print("No matches found.")
-        return location_name
-
-    if len(matches) == 1:
-        return matches[0][0]
-
-    print("\nAmbiguous location. Here are some possible matches:")
-    for i, item in enumerate(matches):
-        match, score, _ = item  # This crap broke this update btw there you go
-        print(f"{i + 1}. {match} (Score: {score:.2f})")
-
-    print(f"{len(matches) + 1}. Manual Correction")
-    print(f"{len(matches) + 2}. Full Manual (not saved in dictionary)")
-    print(f"{len(matches) + 3}. Clear Cache")
-    print(f"{len(matches) + 4}. Clear User Entries")
-    print(f"{len(matches) + 5}. Clear All Cache")
-    print(f"{len(matches) + 6}. Exit")
-
-    try:
-        return get_location_choice(matches, location_name)
-    except ValueError:
-        print("Invalid input. Please enter a number.")
-        return prompt_for_location(location_name)  # Recursively call if invalid input
-
-
-
-def fahrenheit_to_celsius(fahrenheit):
-    return (fahrenheit - 32) / 1.8
-
-
-def print_daily_forecast(daily):
-    high_temp_celsius = fahrenheit_to_celsius(daily.highest_temperature)
-    low_temp_celsius = fahrenheit_to_celsius(daily.lowest_temperature)
-
-    print(f"  Date: {daily.date}")
-
-    print(
-        f"  Highest Temperature: {daily.highest_temperature}°F ({high_temp_celsius:.1f}°C)"
-    )
-
-    print(
-        f"  Lowest Temperature: {daily.lowest_temperature}°F ({low_temp_celsius:.1f}°C)"
-    )
-
-    print(f"  Sunrise: {daily.sunrise}, Sunset: {daily.sunset}")
-    print(f"  Moon Phase: {daily.moon_phase.emoji} ({daily.moon_phase.name})")
-    print(f"  Snowfall: {daily.snowfall} inches")
-    print("  Hourly Forecast:")
-
-    for hourly in daily.hourly_forecasts:
-        time_formatted = hourly.time.strftime("%H:%M")
-        hourly_temp_celsius = fahrenheit_to_celsius(hourly.temperature)
-
-        print(
-            f"    → {time_formatted}: {hourly.temperature}°F ({hourly_temp_celsius:.1f}°C), {hourly.description}"
-        )
-
-        print(
-            f"      Wind Speed: {hourly.wind_speed} mph, {hourly.wind_direction.emoji} ({hourly.wind_direction.name})"
-        )
-
-        print(
-            f"      Humidity: {hourly.humidity}%, UV Index: {hourly.ultraviolet.index} ({hourly.ultraviolet.name})"
-        )
-    print("-" * 40)
-
-
-async def print_overview(location_name, weather):
-
-    current_temp_fahrenheit = weather.temperature
-    current_temp_celsius = fahrenheit_to_celsius(current_temp_fahrenheit)
-    country_code = country_dict.get(location_name.upper())
-    country_flag = (
-        get_country_flag(country_code) if country_code else "No flag available"
-    )
-
-    print(f"\n🌡️ Current Weather in {location_name}: {country_flag}")
-    print(f"  Temperature: {current_temp_fahrenheit}°F ({current_temp_celsius:.1f}°C)")
-    print(f"  Humidity: {weather.humidity}%")
-    print(
-        f"  Wind Speed: {weather.wind_speed} mph, {weather.wind_direction.emoji} ({weather.wind_direction.name})"
-    )
-    print(f"  UV Index: {weather.ultraviolet.index} ({weather.ultraviolet.name})\n")
-
-
-async def get_weather_forecast(location_name):
-    async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
-        print("📅 Daily Forecast:")
-
-        weather = await client.get(location_name)
-        await print_overview(location_name, weather)
-
-        daily_forecasts = list(weather.daily_forecasts)
-        for daily in daily_forecasts[:3]:  # Get the first 3 days of forecasts
-            print_daily_forecast(daily)
-
-def input_request():
-    location = input("Please enter the location for which you want the weather forecast: ").upper()
-    
-while True:    
-	if __name__ == "__main__":
-		user_entries.update(load_user_entries())
-		print("clear cache input: 1")
-		print("clear user entries input: 2")
-		print("clear all cache input: 3")
-		print("Exit: 4")
-		location = input(
-			"Please enter the location for which you want the weather forecast: "
-		).upper()
-		if location== "1":
-			clear_cache()
-		elif location== "2":
-			clear_user_entries()
-		elif location== "3":
-			clear_cache()
-			clear_user_entries()
-		elif location== "4":
-			exit_program()
+def converter(INPUT):
+	SUM = 0
+	for i in range(len(INPUT)):
+		DIGIT = int(INPUT[i])
+		if DIGIT not in (0, 1):
+			print("Not a binary digit")
+			return -1
 		else:
-			location = prompt_for_location(location)
+			SUM = SUM * 2 + DIGIT
+	return SUM
 
-			if os.name == "nt":
-				asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+def d2bconverter(INPUT):
+	SUM = 0
+	COUNTER = 0
+	for i in range(len(INPUT)):
+		DIGIT = int(INPUT[i])
+		if DIGIT not in (0, 1):
+			print("Not a binary digit")
+			return -1
+		else:
+			SUM = SUM + DIGIT
+			COUNTER += 1
+	SUM = COUNTER + SUM
+	SUM = SUM / 2
+	return SUM
 
-			asyncio.run(get_weather_forecast(location))
+def friction():
+	try:
+		A = float(input("GIVE (p=u/s): "))
+		B = input("MASS(KG) OR N: ")
+		if B == "MASS" or B == "1":
+			NUM = float(input("input: "))
+			N = 9.81 * NUM
+		elif B == "N" or B == "2":
+			N = float(input("input: "))
+			NUM = N / 9.81
+		F2 = N * A
+		C = input("NEED ACCELERATION? ").upper()
+		if C == "YES" or C == "1":
+			E = float(input("GIVE (p=u/k): "))
+			K2 = 0
+			F = E * N
+			K2 = A - F
+			print("formula: F=ma")
+			print("Using: a=F/A")
+			ACCEL = N / NUM
+			print("F(S): ", ACCEL, "N")
+		else:
+			print("Accleration not calculated")
+		print("F(F): ", F2, "N")
+	except TypeError or ValueError:
+		print("try again")
+	except SyntaxError:
+		print("Syntax error (program fault)")
 
-			save_user_entries()
+def momentum(): #working on it
+	try:
+		print("ok")
+	except:
+		print('not don')
+
+def notequal(SUM):
+	if SUM != -1:
+		print(SUM)
+
+def Fun():
+	try:
+		print("nothing is selected")		
+	except ValueError or TypeError:
+		print("try again")
+	except SyntaxError:
+		print("Error system quitting")
+
+def Geometric(): #working on it
+	print("How many rows and columns? ")
+	PTABLE=prettytable()
+	ROW=input("ROW(S): ")
+	COL=input("COLUMN(S): ")
+	TABLE=[]
+	for d in COL:
+		PTABLE.add_column(columns[0], i+1)
+		for i in ROW:
+			a=int(input())
+			PTABLE.add_row(columns[d+1], a)
+		
+	
+def Statistic(): #working on it
+	a = input("ok")
+	
+def clear():
+		time.sleep(5)
+		clear()
+
+def open_terminal():
+	if sys.platform == 'win32':
+		subprocess.Popen('start', shell=True)
+		warnings.filterwarnings("ignore")
+	elif sys.platform == 'Darwin':
+		subprocess.Popen('open -a Terminal .', shell=True)
+		warnings.filterwarnings("ignore")
 	else:
-		exit_program()
+		try:
+			a=input("kitty or gnome: ").upper()
+			if a in ("KITTY", "1"):
+				My_Cmmnd="cmatrix"
+				#subprocess.Popen('kitty', shell=True)
+				os.system("kitty -e "+My_Cmmnd)
+				warnings.filterwarnings("ignore")
+			elif a in ("GNOME", "2"):
+				My_Cmmnd="cmatrix"			
+				#subprocess.Popen('gnome-terminal', shell=True)
+				os.system("gnome-terminal -e 'bash -c \"" + My_Cmmnd + ";bash\"'")
+				warnings.filterwarnings("ignore")
+		except:
+			print("Unsupported platform")
+			sys.exit(1)
+
+def main():
+	while True:
+		try:
+			b = input("Computer Science, Physics or Math: ").upper()
+			if b in ("COMPUTER SCIENCE", "CP","1","COMPUTER"):
+				a = input("binary or denary: ").upper()
+				if a == "BINARY" or a == "1":	
+					INPUT = input("Input binary number: ")
+					SUM = converter(INPUT)
+					notequal(SUM)
+				elif a == "DENARY" or a == "2":
+					INPUT = input("Input denary: ")
+					SUM = d2bconverter(INPUT)
+					notequal(SUM)
+			elif b in ("PHYSICS","2","P","PHYSIC"):
+				a = input("FRICTION or idk: ").upper()
+				if a == "FRICTION" or a == "1": 
+					friction()
+			elif b in ("MATH", "3", "M"):
+				a = input("Calculate Geometric seq and series or Statistic: ").upper()
+				if a == "1" or a == "GEOMETRIC" or a == "G" or a=="GEOMETRIC SEQ":
+					print("Function required, not done yet")
+					exit()
+					Geometric()
+				elif a=="2" or a=="STATISTIC" or a =="S":
+					print("Function required, not done yet")
+					exit()
+					Statistic()
+			elif b in ("FUN"): #easter egg
+				open_terminal()
+			elif b in ("CLEAR", "CLR"):
+				os.system('clear')
+			else:
+				print("try again")
+			clear()
+			
+		except ValueError or TypeError:
+			print("Try again.")
+			
+		except KeyboardInterrupt:
+			print("ancelled")
+			os.system('clear')
+			break
+
+
+if __name__ == "__main__":
+	os.system('clear')
+	main()
