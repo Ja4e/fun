@@ -21,3 +21,5 @@ the output is too long eh ill try to integrate prettytable into the code to look
 
 
 run weather396.py if theres 3.9.6 only installed on your computer
+
+city names arent supported will support them properly
